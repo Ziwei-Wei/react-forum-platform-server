@@ -1,0 +1,12 @@
+{
+    "dbURI": "mongodb+srv://fora:fora2019!!!@fora0-bvysd.mongodb.net/test?retryWrites=true&w=majority",
+    "Port": "5000",
+    "jwtSecret": "some secret",
+    "accessTokenTime": "4 hours",
+    "github": {
+        "clientID": "",
+        "clientSecret": "",
+        "callbackURL": "",
+        "scope": "user:email"
+    }
+}
