@@ -1,55 +1,102 @@
 const passport = require("passport");
-const signIn = require("./controller").signIn;
-const getFullProfile = require("./controller").getFullProfile;
+const jwt = require("jsonwebtoken");
+const jwtSecret = require("config").get("jwtSecret");
+const jwtAccessTime = require("config").get("jwtAccessTime");
+
+const User = require("../user/schema");
+const Topic = require("../topic/schema");
+const Reply = require("../reply/schema");
 
 const userAPI = app => {
     // get user profile
-    app.get("/api/user/:username", (req, res) => {
-        getFullProfile(req.params.username).then(
-            result => {
-                res.send(result);
-            },
-            error => {
-                res.send({ error });
-            }
-        );
-    });
+    app.get(
+        "/api/user",
+        passport.authenticate("jwt", { session: false }),
+        async (req, res) => {
+            try {
+                // construct user info
+                const userInfo = {
+                    email: req.user.email,
+                    username: req.user.username,
+                    avatarUrl: req.user.avatarUrl
+                };
 
-    // create user profile
-    app.post("/api/user", (req, res) => {
-        getFullProfile(req.params.username).then(
-            result => {
-                res.send(result);
-            },
-            error => {
-                res.send({ error });
-            }
-        );
-    });
+                // get all topics from user
+                const userTopics = await Topic.find({
+                    user: req.user._id
+                }).lean();
 
-    // change user profile
-    app.patch("/api/user", (req, res) => {
-        getFullProfile(req.params.username).then(
-            result => {
-                res.send(result);
-            },
-            error => {
-                res.send({ error });
-            }
-        );
-    });
+                // get all replies from user
+                const userReplies = await Reply.find({
+                    user: req.user._id
+                }).lean();
 
-    // delete user
-    app.delete("/api/user/:username", (req, res) => {
-        getFullProfile(req.params.username).then(
-            result => {
-                res.send(result);
-            },
-            error => {
-                res.send({ error });
+                // send info back
+                res.status(200).send({
+                    info: userInfo,
+                    topics: userTopics,
+                    replies: userReplies
+                });
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("server error: " + error.message);
             }
-        );
-    });
+        }
+    );
+
+    // register a new user
+    app.post(
+        "/api/user",
+        passport.authenticate("register", { session: false }),
+        (req, res) => {
+            jwt.sign({ id: req.user.username }, jwtSecret, jwtAccessTime, function(
+                error,
+                accessToken
+            ) {
+                if (!error) {
+                    res.status(200).send({ accessToken });
+                } else {
+                    console.error(error);
+                }
+            });
+        }
+    );
+
+    // local login
+    app.post(
+        "/api/session/local",
+        passport.authenticate("login", { session: false }),
+        (req, res) => {
+            jwt.sign({ id: req.user.username }, jwtSecret, jwtAccessTime, function(
+                error,
+                accessToken
+            ) {
+                if (!error) {
+                    res.status(200).send({ accessToken });
+                } else {
+                    console.error(error);
+                }
+            });
+        }
+    );
+
+    // github login
+    app.post(
+        "/api/session/github",
+        passport.authenticate("login_from_github", { session: false }),
+        (req, res) => {
+            jwt.sign({ id: req.user.username }, jwtSecret, jwtAccessTime, function(
+                error,
+                accessToken
+            ) {
+                if (!error) {
+                    res.status(200).send({ accessToken });
+                } else {
+                    console.error(error);
+                }
+            });
+        }
+    );
 };
 
 module.exports = userAPI;

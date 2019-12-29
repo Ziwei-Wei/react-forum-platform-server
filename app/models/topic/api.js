@@ -1,87 +1,141 @@
-// discussion controllers
-const getDiscussion = require("./controller").getDiscussion;
-const createDiscussion = require("./controller").createDiscussion;
-const toggleFavorite = require("./controller").toggleFavorite;
-const deleteDiscussion = require("./controller").deleteDiscussion;
+const mongoose = require("mongoose");
+const passport = require("passport");
+const Forum = require("../forum/schema");
+const Topic = require("./schema");
+const Reply = require("../reply/schema");
 
-/**
- * discussion apis
- */
-const discussionAPI = app => {
-    // get signle discussion
-    app.get("/api/discussion/:discussion_slug", (req, res) => {
-        const { discussion_slug } = req.params;
-        getDiscussion(discussion_slug).then(
-            result => {
-                res.send(result);
-            },
-            error => {
-                res.send(error);
+const topicAPI = app => {
+    // get all topics in a forum
+    app.get("/api/forum/:forumName/topic", async (req, res) => {
+        try {
+            // check if forum exist
+            const currForum = await Forum.findOne({
+                name: req.params.forumName
+            }).lean();
+            if (!currForum) throw new Error("Forum is invalid");
+
+            // get all topics in forum
+            const allTopics = await Topic.find({ forum: currForum._id })
+                .populate("user", { path: "class", select: "username" })
+                .lean();
+
+            // send back topics
+            res.status(200).send(allTopics);
+        } catch (error) {
+            // handle error
+            console.error(error);
+            res.status(500).send("server error: " + error.message);
+        }
+    });
+
+    // create a topic in a forum
+    app.post(
+        "/api/forum/:forumName/topic",
+        passport.authenticate("jwt", { session: false }),
+        async (req, res) => {
+            const session = await mongoose.startSession();
+            session.startTransaction();
+            try {
+                // check if forum exist
+                const currForum = await Forum.findOne({
+                    name: req.params.forumName
+                }).lean();
+                if (!currForum) throw new Error("Invalid forum");
+
+                // check if topic already exist
+                const currTopic = await Topic.findOne({
+                    forum: currForum._id,
+                    title: req.body.title
+                }).lean();
+                if (currTopic) throw new Error("Invalid topic");
+
+                // create the topic in forum
+                const newTopic = await Topic.create({
+                    forum: currForum._id,
+                    user: req.user._id,
+                    title: req.body.title,
+                    category: req.body.category,
+                    tags: req.body.tags
+                });
+
+                // create the first reply as the author
+                await Reply.create({
+                    forum: currForum._id,
+                    topic: newTopic._id,
+                    userId: req.user._id,
+                    content: req.body.content
+                });
+
+                // commit transaction
+                await session.commitTransaction();
+                session.endSession();
+
+                // send status
+                res.sendStatus(200);
+            } catch (error) {
+                // abort transaction
+                await session.abortTransaction();
+                session.endSession();
+
+                // handle error
+                console.error(error);
+                res.status(500).send("server error: " + error.message);
             }
-        );
-    });
-
-    // toggle favorite to the discussion
-    app.put("/api/discussion/toggleFavorite/:discussion_id", (req, res) => {
-        const { discussion_id } = req.params;
-        if (req.user) {
-            // TODO: describe the toggle process with comments
-            toggleFavorite(discussion_id, req.user._id).then(
-                result => {
-                    getDiscussion(result.discussion_slug).then(
-                        result => {
-                            res.send(result);
-                        },
-                        error => {
-                            res.send({ discussionUpdated: false });
-                        }
-                    );
-                },
-                error => {
-                    res.send({ discussionUpdated: false });
-                }
-            );
-        } else {
-            res.send({ discussionUpdated: false });
         }
-    });
+    );
 
-    // create a new discussion
-    app.post("/api/discussion/newDiscussion", (req, res) => {
-        if (req.user) {
-            createDiscussion(req.body).then(
-                result => {
-                    res.send(
-                        Object.assign({}, result._doc, { postCreated: true })
-                    );
-                },
-                error => {
-                    res.send({ postCreated: false });
+    // delete a topic in a forum
+    app.post(
+        "/api/forum/:forumName/topic/:topicTitle",
+        passport.authenticate("jwt", { session: false }),
+        async (req, res) => {
+            const session = await mongoose.startSession();
+            session.startTransaction();
+            try {
+                // check if forum exist
+                const currForum = await Forum.findOne({
+                    name: req.params.forumName
+                }).lean();
+                if (!currForum) throw new Error("Invalid forum");
+
+                // check if topic exist
+                const currTopic = await Topic.findOne({
+                    forum: currForum._id,
+                    title: req.params.topicTitle
+                }).lean();
+                if (!currTopic) throw new Error("Invalid topic");
+
+                // if user is forum admin or topic author, delete
+                if (currForum.admins.includes(req.user._id)) {
+                    await Topic.deleteOne({
+                        forum: currForum._id,
+                        title: req.params.topicTitle
+                    }).lean();
+                } else {
+                    await Topic.deleteOne({
+                        forum: currForum._id,
+                        title: req.params.topicTitle,
+                        user: req.user._id
+                    }).lean();
                 }
-            );
-        } else {
-            res.send({ postCreated: false });
-        }
-    });
 
-    // delete a discussion
-    app.delete(
-        "/api/discussion/deleteDiscussion/:discussion_slug",
-        (req, res) => {
-            if (req.user) {
-                deleteDiscussion(req.params.discussion_slug).then(
-                    result => {
-                        res.send({ deleted: true });
-                    },
-                    error => {
-                        res.send({ deleted: false });
-                    }
-                );
-            } else {
-                res.send({ deleted: false });
+                // commit transaction
+                await session.commitTransaction();
+                session.endSession();
+
+                // send status
+                res.sendStatus(200);
+            } catch (error) {
+                // abort transaction
+                await session.abortTransaction();
+                session.endSession();
+
+                // handle error
+                console.error(error);
+                res.status(500).send("server error: " + error.message);
             }
         }
     );
 };
 
-module.exports = discussionAPI;
+module.exports = topicAPI;

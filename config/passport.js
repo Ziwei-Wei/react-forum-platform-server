@@ -10,7 +10,7 @@ const jwtExtractMethod = require("passport-jwt").ExtractJwt;
 const User = require("../app/models/user/schema");
 
 passport.use(
-    "local_register",
+    "register",
     new LocalStrategy(
         {
             usernameField: "username",
@@ -42,7 +42,7 @@ passport.use(
 );
 
 passport.use(
-    "local_login",
+    "login",
     new LocalStrategy(
         {
             usernameField: "username",
@@ -56,13 +56,10 @@ passport.use(
                     console.log("user is invalid");
                     return done(null, false, { message: "user is invalid" });
                 } else {
-                    const isSame = await bcrypt.compare(
-                        password,
-                        user.password
-                    );
+                    const isSame = await bcrypt.compare(password, user.password);
 
                     if (isSame === true) {
-                        console.log("user found & authenticated");
+                        console.log("user authenticated");
                         return done(null, user);
                     } else {
                         console.log("passwords do not match");
@@ -93,7 +90,7 @@ passport.use(
                 }).lean();
 
                 if (user) {
-                    console.log("user found in db in passport");
+                    console.log("user authenticated");
                     done(null, user);
                 } else {
                     console.log("user not found in db");
@@ -106,14 +103,14 @@ passport.use(
         }
     )
 );
-
+/*
 passport.use(
-    "github_login",
+    "login_from_github",
     new GithubStrategy(
         {
             clientID: GITHUB_CLIENT_ID,
             clientSecret: GITHUB_CLIENT_SECRET,
-            callbackURL: GITHUB_CALLBACK_URL
+            callbackURL: "http://127.0.0.1:3000/auth/github/callback"
         },
         async (accessToken, refreshToken, gitProfile, done) => {
             try {
@@ -156,4 +153,6 @@ passport.use(
             }
         }
     )
+    
 );
+*/

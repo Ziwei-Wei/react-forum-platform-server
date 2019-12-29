@@ -6,7 +6,7 @@ const replySchema = mongoose.Schema({
     topic: { type: ObjectId, ref: "topic" },
     user: { type: ObjectId, ref: "user" },
     content: Object,
-    createdAt: { type: Date, default: Date.now }
+    createdAt: { type: Date, default: Date.now, immutable: true }
 });
 
 replySchema.index({ createdAt: -1 });

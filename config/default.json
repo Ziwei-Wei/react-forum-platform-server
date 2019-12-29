@@ -1,8 +1,8 @@
 {
-    "dbURI": "mongodb+srv://fora:fora2019!!!@fora0-bvysd.mongodb.net/test?retryWrites=true&w=majority",
+    "dbURI": "mongodb+srv://Ziwei-Wei:zww!S666@minimalist-forum-cluster0-vvv9a.mongodb.net/test?retryWrites=true&w=majority",
     "Port": "5000",
     "jwtSecret": "some secret",
-    "accessTokenTime": "4 hours",
+    "jwtAccessTime": { "expiresIn": "4 hours" },
     "github": {
         "clientID": "",
         "clientSecret": "",

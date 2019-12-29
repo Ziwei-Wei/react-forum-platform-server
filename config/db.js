@@ -14,8 +14,8 @@ const connectDB = async (dbURI, dbName) => {
         const db = mongoose.connection;
         return db;
     } catch (error) {
-        console.log(error.message);
-        process.exit(1);
+        console.error(error);
+        process.exit();
     }
 };
 
