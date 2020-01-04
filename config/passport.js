@@ -10,38 +10,6 @@ const jwtExtractMethod = require("passport-jwt").ExtractJwt;
 const User = require("../app/models/user/schema");
 
 passport.use(
-    "register",
-    new LocalStrategy(
-        {
-            usernameField: "username",
-            passwordField: "password",
-            session: false
-        },
-        async (username, password, done) => {
-            try {
-                const user = await User.findOne({ username: username }).lean();
-                if (user) {
-                    console.log("username has already been taken");
-                    return done(null, false, {
-                        message: "username has already been taken"
-                    });
-                } else {
-                    const hashedPassword = await bcrypt.hash(password, 10);
-                    const newUser = await User.create({
-                        username: username,
-                        password: hashedPassword
-                    });
-                    return done(null, newUser);
-                }
-            } catch (error) {
-                console.error(error);
-                done(error);
-            }
-        }
-    )
-);
-
-passport.use(
     "login",
     new LocalStrategy(
         {
@@ -53,20 +21,14 @@ passport.use(
             try {
                 const user = await User.findOne({ username: username }).lean();
                 if (!user) {
-                    console.log("user is invalid");
-                    return done(null, false, { message: "user is invalid" });
-                } else {
-                    const isSame = await bcrypt.compare(password, user.password);
+                    return done(null, false, { message: "User is invalid" });
+                }
 
-                    if (isSame === true) {
-                        console.log("user authenticated");
-                        return done(null, user);
-                    } else {
-                        console.log("passwords do not match");
-                        return done(null, false, {
-                            message: "passwords is invalid"
-                        });
-                    }
+                const isSame = await bcrypt.compare(password, user.password);
+                if (isSame === true) {
+                    return done(null, user);
+                } else {
+                    return done(null, false, { message: "Passwords is invalid" });
                 }
             } catch (error) {
                 console.error(error);
@@ -86,14 +48,12 @@ passport.use(
         async (payload, done) => {
             try {
                 const user = await User.findOne({
-                    username: payload.id
+                    _id: payload.id
                 }).lean();
 
                 if (user) {
-                    console.log("user authenticated");
                     done(null, user);
                 } else {
-                    console.log("user not found in db");
                     done(null, false);
                 }
             } catch (error) {

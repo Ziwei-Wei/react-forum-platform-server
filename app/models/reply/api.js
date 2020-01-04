@@ -1,116 +1,126 @@
+const express = require("express");
 const passport = require("passport");
+const mongoose = require("mongoose");
+
+const { MODEL_NAME } = require("../../constants");
+
 const Reply = require("./schema");
 const Forum = require("../forum/schema");
 const Topic = require("../topic/schema");
 
-const replyAPI = app => {
-    // get all replies for a topic
-    app.get("/api/forum/:forumName/topic/:topicTitle/reply", async (req, res) => {
-        try {
-            // find forum by forum name
-            const currForum = await Forum.findOne({
-                name: req.params.forumName
-            }).lean();
-            if (!currForum) throw new Error("Invalid forum");
+let router = express.Router();
 
-            // find the topic by topic name and forum name, the increment viewNum
+// get all replies for a topic
+router.get("/api/forum/:forumId/topic/:topicId/reply", async (req, res) => {
+    try {
+        // find the topic by topic id and forum id, then increment the viewNum
+        const currTopic = await Topic.findOneAndUpdate(
+            {
+                _id: req.params.topicId,
+                forum: req.params.forumId
+            },
+            { $inc: { viewNum: 1 } }
+        ).lean();
+        if (!currTopic) throw { status: 404, message: "Topic or forum does not exist" };
+
+        // find all replies for that topic in that forum
+        const data = await Reply.find(
+            {
+                forum: req.params.forumId,
+                topic: req.params.topicId
+            },
+            "user content createdAt"
+        )
+            .populate({ path: MODEL_NAME.user, select: "-_id username avatarUrl" })
+            .lean();
+
+        // send all back to client
+        res.status(200).send(data);
+    } catch (error) {
+        console.error(error);
+        res.status(error.status ? error.status : 500).send(error.message);
+    }
+});
+
+// create an reply on a topic
+router.post(
+    "/api/forum/:forumId/topic/:topicId/reply",
+    passport.authenticate("jwt", { session: false }),
+    async (req, res) => {
+        const session = await mongoose.startSession();
+        session.startTransaction();
+        try {
+            // check if forum exist
+            const forumExists = await Forum.exists({
+                _id: req.params.forumId
+            });
+            if (!forumExists) throw { status: 404, message: "Forum does not exist" };
+
+            // check if topic exist
             const currTopic = await Topic.findOneAndUpdate(
                 {
-                    forum: currForum._id,
-                    title: req.params.topicTitle
+                    _id: req.params.topicId
                 },
-                { $inc: { viewNum: 1 } }
+                { $inc: { replyNum: 1 }, $set: { updatedAt: Date.now() } }
             ).lean();
-            if (!currTopic) throw new Error("Invalid topic");
+            if (!currTopic) throw { status: 404, message: "Topic does not exist" };
 
-            // find all replies for that topic in that forum
-            const allReplies = await Reply.find({
-                forum: currForum._id,
-                topic: currTopic._id
-            })
-                .populate("user")
-                .lean();
+            // create the reply
+            await Reply.create({
+                forum: req.params.forumId,
+                topic: req.params.topicId,
+                user: req.user._id,
+                content: req.body.content
+            });
 
-            // send all back to client
-            res.status(200).send(allReplies);
+            await session.commitTransaction();
+            session.endSession();
+
+            res.sendStatus(200);
         } catch (error) {
+            await session.abortTransaction();
+            session.endSession();
             console.error(error);
-            res.status(500).send("server error: " + error.message);
+            res.status(error.status ? error.status : 500).send(error.message);
         }
-    });
+    }
+);
 
-    // create an reply on a topic
-    app.post(
-        "/api/forum/:forumName/topic/:topicTitle/reply",
-        passport.authenticate("jwt", { session: false }),
-        async (req, res) => {
-            try {
-                // check if forum exist
-                const currForum = await Forum.findOne({
-                    name: req.params.forumName
-                }).lean();
-                if (!currForum) throw new Error("Invalid forum");
+// delete an reply on a topic
+router.delete(
+    "/api/forum/:forumId/topic/:topicId/reply/:replyId",
+    passport.authenticate("jwt", { session: false }),
+    async (req, res) => {
+        const session = await mongoose.startSession();
+        session.startTransaction();
+        try {
+            // check if forum exist
+            const forumExists = await Forum.exists({
+                _id: req.params.forumId
+            });
+            if (!forumExists) throw { status: 404, message: "Forum does not exist" };
 
-                // check if topic exist
-                const currTopic = await Topic.findOneAndUpdate(
-                    {
-                        forum: currForum._id,
-                        title: req.params.topicTitle
-                    },
-                    { $inc: { replyNum: 1 }, $set: { updatedAt: Date.now() } }
-                ).lean();
-                if (!currTopic) throw new Error("Invalid topic");
+            // check if topic exist
+            const currTopic = await Topic.findByIdAndUpdate(req.params.topicId, {
+                $inc: { replyNum: -1 }
+            }).lean();
+            if (!currTopic) throw { status: 404, message: "Topic does not exist" };
 
-                // create the reply
-                await Reply.create({
-                    forum: currForum._id,
-                    topic: currTopic._id,
-                    user: req.user._id,
-                    content: req.body.content
-                });
+            // check if reply exist
+            const currReply = await Reply.findByIdAndDelete(req.params.replyId).lean();
+            if (!currReply) throw { status: 404, message: "Reply does not exist" };
 
-                res.sendStatus(200);
-            } catch (error) {
-                console.error(error);
-                res.status(500).send("server error: " + error.message);
-            }
+            await session.commitTransaction();
+            session.endSession();
+
+            res.sendStatus(200);
+        } catch (error) {
+            await session.abortTransaction();
+            session.endSession();
+            console.error(error);
+            res.status(error.status ? error.status : 500).send(error.message);
         }
-    );
+    }
+);
 
-    // delete an reply on a topic
-    app.delete(
-        "/api/forum/:forumName/topic/:topicTitle/reply",
-        passport.authenticate("jwt", { session: false }),
-        async (req, res) => {
-            try {
-                // check if forum exist
-                const currForum = await Forum.findOne({
-                    name: req.params.forumName
-                }).lean();
-                if (!currForum) throw new Error("Invalid forum");
-
-                // check if topic exist
-                const currTopic = await Topic.findOneAndUpdate({
-                    forum: currForum._id,
-                    title: req.params.topicTitle
-                }).lean();
-                if (!currTopic) throw new Error("Invalid topic");
-
-                // create the reply
-                await Reply.create({
-                    forum: currForum._id,
-                    topic: currTopic._id,
-                    user: req.user._id,
-                    content: req.body.content
-                });
-
-                res.sendStatus(200);
-            } catch (error) {
-                console.error(error);
-                res.status(500).send("server error: " + error.message);
-            }
-        }
-    );
-};
-
-module.exports = replyAPI;
+module.exports = router;

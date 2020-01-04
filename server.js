@@ -45,4 +45,5 @@ const exit = async (server, db) => {
     console.log(`>>> Server stopped listening at port: ${PORT}`);
 };
 
+/* fire the server */
 start();
