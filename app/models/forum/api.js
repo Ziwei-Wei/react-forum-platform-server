@@ -37,6 +37,17 @@ router.get("/api/forum", async (req, res) => {
     }
 });
 
+// get a forum id by name
+router.get("/api/forum/:forumName", async (req, res) => {
+    try {
+        const data = await Forum.findOne({ name: req.params.forumName }, "_id").lean();
+        res.status(200).send(data);
+    } catch (error) {
+        console.error(error);
+        res.status(error.status ? error.status : 500).send(error.message);
+    }
+});
+
 // create a new forum by a logged in user
 router.post(
     "/api/forum",
