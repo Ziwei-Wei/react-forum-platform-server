@@ -52,10 +52,12 @@ router.get("/api/forum/:forumId/topic", async (req, res) => {
         // get all topics in forum
         const data = await Topic.find(
             { forum: currForum._id },
-            "_id user name viewNum replyNum updatedAt"
+            "_id user name viewNum replyNum updatedAt category tags"
         )
             .sort(getSortingMethod(req.query.sorting_method))
-            .populate(MODEL_NAME.user, "-_id username avatarUrl")
+            .populate(MODEL_NAME.user, "_id username avatarUrl")
+            .populate(MODEL_NAME.category, "_id name")
+            .populate(MODEL_NAME.tag + "s", "_id name")
             .lean();
 
         // send back topics
