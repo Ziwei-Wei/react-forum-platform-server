@@ -68,6 +68,37 @@ router.get("/api/forum/:forumId/topic", async (req, res) => {
     }
 });
 
+
+// get a topic in a forum
+router.get("/api/forum/:forumId/topic/:topicId", async (req, res) => {
+    try {
+        // check if forum exist
+        const currForum = await Forum.findOne(
+            {
+                _id: req.params.forumId
+            },
+            "_id"
+        ).lean();
+        if (!currForum) throw { status: 404, message: "Forum does not exist" };
+
+        // get a topic in forum
+        const data = await Topic.findOne(
+            { forum: currForum._id },
+            "_id user name viewNum replyNum updatedAt category tags"
+        )
+            .populate(MODEL_NAME.user, "_id username avatarUrl")
+            .populate(MODEL_NAME.category, "_id name")
+            .populate(MODEL_NAME.tag + "s", "_id name")
+            .lean();
+
+        // send back topics
+        res.status(200).send(data);
+    } catch (error) {
+        console.error(error);
+        res.status(error.status ? error.status : 500).send(error.message);
+    }
+});
+
 // create a topic in a forum
 router.post(
     "/api/forum/:forumId/topic",
