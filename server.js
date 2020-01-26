@@ -10,6 +10,7 @@ const start = async () => {
     console.log(`>>> Server started <<<`);
     // connect database
     let db = await connectDB(dbURI, "testDB");
+    console.log(`>>> DB connected <<<`);
 
     // start listening
     let server = app.listen(PORT, () =>
