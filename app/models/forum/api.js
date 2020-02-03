@@ -62,6 +62,8 @@ router.post(
             .matches(/^[-/=\w\s.,'"!?@#%$+()]+$/)
             .isLength({ min: 1, max: 128 }),
         body("category")
+            .isArray(),
+        body("category.*")
             .matches(/^[a-z-]+$/)
             .isLength({ min: 1, max: 32 })
     ],
