@@ -28,6 +28,7 @@ router.get("/api/forum", async (req, res) => {
         const data = await Forum.find({}, "_id name description category")
             .sort(getSortingMethod(req.query.sorting_method))
             .populate({ path: MODEL_NAME.category, select: "-_id name" })
+            .populate({ path: "admin", model: MODEL_NAME.user, select: "-_id username" })
             .lean();
 
         res.status(200).send(data);
@@ -62,8 +63,6 @@ router.post(
             .matches(/^[-/=\w\s.,'"!?@#%$+()]+$/)
             .isLength({ min: 1, max: 128 }),
         body("category")
-            .isArray(),
-        body("category.*")
             .matches(/^[a-z-]+$/)
             .isLength({ min: 1, max: 32 })
     ],

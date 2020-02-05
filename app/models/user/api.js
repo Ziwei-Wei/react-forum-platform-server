@@ -77,6 +77,7 @@ router.get(
     }
 );
 
+
 // register a new user
 router.post(
     "/api/user",
@@ -131,7 +132,7 @@ router.post(
                 password: hashedPassword
             });
 
-            jwt.sign({ id: user._id }, jwtSecret, jwtAccessTime, function(
+            jwt.sign({ id: user._id }, jwtSecret, jwtAccessTime, function (
                 error,
                 accessToken
             ) {
@@ -153,7 +154,7 @@ router.post(
     "/api/session/local",
     passport.authenticate("login", { session: false }),
     (req, res) => {
-        jwt.sign({ id: req.user._id }, jwtSecret, jwtAccessTime, function(
+        jwt.sign({ id: req.user._id }, jwtSecret, jwtAccessTime, function (
             error,
             accessToken
         ) {
@@ -171,7 +172,7 @@ router.put(
     "/api/session/local",
     passport.authenticate("jwt", { session: false }),
     (req, res) => {
-        jwt.sign({ id: req.user._id }, jwtSecret, jwtAccessTime, function(
+        jwt.sign({ id: req.user._id }, jwtSecret, jwtAccessTime, function (
             error,
             accessToken
         ) {
@@ -189,7 +190,7 @@ router.post(
     "/api/session/github",
     passport.authenticate("login_from_github", { session: false }),
     (req, res) => {
-        jwt.sign({ id: req.user._id }, jwtSecret, jwtAccessTime, function(
+        jwt.sign({ id: req.user._id }, jwtSecret, jwtAccessTime, function (
             error,
             accessToken
         ) {

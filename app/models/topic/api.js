@@ -110,6 +110,7 @@ router.post(
         body("category")
             .matches(/^[a-z-]+$/)
             .isLength({ min: 1, max: 32 }),
+        body("tags").isArray(),
         body("tags.*")
             .optional()
             .isAlpha()
@@ -120,6 +121,7 @@ router.post(
     (req, res, next) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
+            console.log({ errors: errors.array() })
             return res.status(422).json({ errors: errors.array() });
         } else {
             next();
